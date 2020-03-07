@@ -1,5 +1,7 @@
 package com.example.myapplication.xposed;
 
+import android.content.Intent;
+import android.os.Bundle;
 import android.util.Log;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
@@ -115,12 +117,39 @@ public class WechatLog implements IXposedHookLoadPackage {
     public void handleLoadPackage(LoadPackageParam lpparam) throws Throwable {
         //判断包名
         if (lpparam.packageName.equals("com.tencent.mm")) {
+            // openWechatLog(lpparam)
+            hookActivityIntent(lpparam);
+        }
+    }
 
-            Class clazz = lpparam.classLoader.loadClass("com.tencent.mm.xlog.app.XLogSetup");
-            //hook saySomething()方法
-            XposedHelpers.findAndHookMethod(clazz, "keep_setupXLog",
-                boolean.class, String.class, String.class, Integer.class, Boolean.class,
-                Boolean.class, String.class, new XC_MethodHook() {
+    private void hookActivityIntent(LoadPackageParam lpparam) throws Throwable {
+        Class clazz = lpparam.classLoader.loadClass("android.app.Activity");
+        XposedHelpers.findAndHookMethod(clazz, "startActivity",
+            Intent.class, new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+//                    super.beforeHookedMethod(param);
+                    Intent intent = (Intent) param.args[0];
+                    Bundle b = intent.getExtras();
+                    String dataString = intent.getDataString();
+                    Log.i(TAG, "beforeHookedMethod b : " + b.toString());
+                    Log.i(TAG, "beforeHookedMethod dataString : " + dataString);
+                }
+
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    super.afterHookedMethod(param);
+                    Log.i(TAG, "afterHookedMethod");
+                }
+            });
+    }
+
+    private void openWechatLog(LoadPackageParam lpparam) throws Throwable {
+        Class clazz = lpparam.classLoader.loadClass("com.tencent.mm.xlog.app.XLogSetup");
+        //hook saySomething()方法
+        XposedHelpers.findAndHookMethod(clazz, "keep_setupXLog",
+            boolean.class, String.class, String.class, Integer.class, Boolean.class,
+            Boolean.class, String.class, new XC_MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
 //                    super.beforeHookedMethod(param);
@@ -128,12 +157,11 @@ public class WechatLog implements IXposedHookLoadPackage {
                 }
 
                 @Override
-                protected void afterHookedMethod(MethodHookParam param) throws Throwable{
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                     param.args[5] = true;
                     super.afterHookedMethod(param);
                     Log.i(TAG, "keep_setupXLog参数isLogcatOpen: " + param.args[5]);
                 }
             });
-        }
     }
 }
